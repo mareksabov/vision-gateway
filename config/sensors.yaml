@@ -2,6 +2,7 @@ global:
   poll_interval_s: 9
   conf_threshold: 0.6
   roi_upscale: 2
+  max_step_kwh: 50      # <- nový limit na jednorazový skok
 sensors:
 - id: electricity_main
   snapshot_url: http://192.168.30.104:8080/shot.jpg
