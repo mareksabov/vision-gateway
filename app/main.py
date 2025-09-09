@@ -1,85 +1,79 @@
-import os, time, yaml, logging, math
-from paho.mqtt import client as mqtt
+# app/main.py
+import os, time, logging
 from app.utils import fetch_bgr, crop
 from app.ocr_paddle import ocr_digits
-from app import state as ST
+from app.state import State
+from app.mqtt_pub import Mqtt
 
-LOG = logging.getLogger("reader")
+POLL = float(os.getenv("POLL_INTERVAL_S", "5"))
+DEBUG = os.getenv("APP_DEBUG", "0") == "1"
+
 logging.basicConfig(
-    level=os.getenv("LOG_LEVEL", "INFO"),
-    format="%(asctime)s %(levelname)s %(message)s"
+    level=logging.DEBUG if DEBUG else logging.INFO,
+    format="%(asctime)s %(levelname)s: %(message)s",
 )
 
-CFG = yaml.safe_load(open("config/sensors.yaml", "r"))
-POLL = int(CFG.get("global", {}).get("poll_interval_s", 10))
-CONF_MIN = float(CFG.get("global", {}).get("conf_threshold", 0.60))
-UPSCALE = int(CFG.get("global", {}).get("roi_upscale", 2))
+def process_all(mqtt: Mqtt, cfg, st: State):
+    for s in cfg["sensors"]:
+        sid = s["id"]
+        base = s["mqtt_topic_base"]
+        url  = s["snapshot_url"]
 
-def mqtt_client():
-    cli = mqtt.Client()
-    user = os.getenv("MQTT_USER")
-    pwd  = os.getenv("MQTT_PASS")
-    if user: cli.username_pw_set(user, pwd or "")
-    cli.connect(os.getenv("MQTT_HOST", "127.0.0.1"),
-                int(os.getenv("MQTT_PORT", "1883")), 60)
-    return cli
+        try:
+            img = fetch_bgr(url)                          # načítaj snímku
+            if DEBUG: logging.debug(f"[{sid}] got frame")
 
-def publish(cli, base, key, val):
-    topic = f"{base}/{key}"
-    cli.publish(topic, str(val), qos=0, retain=False)
+            # --- OCR čísla ---------------------------------------------------
+            if "roi_display" in s:
+                x, y, w, h = map(int, s["roi_display"])
+                roi = crop(img, (x, y, w, h))
 
-def nearest_bucket(val, t1, t2):
-    """Vyberie T1 alebo T2 podľa menšej absolútnej odchýlky."""
-    d1 = abs(val - t1)
-    d2 = abs(val - t2)
-    return ("t1" if d1 <= d2 else "t2")
+                txt, conf = ocr_digits(roi, upscale=int(s.get("roi_upscale", 2)))
+                if DEBUG: logging.debug(f"[{sid}] OCR '{txt}' conf={conf:.2f}")
 
-def digits_to_int(d):
-    # odstrihni leading zeros
-    d = d.lstrip("0")
-    return int(d) if d else 0
+                mqtt.pub(base, "ocr_raw", txt or "(null)")
+                mqtt.pub(base, "ocr_conf", f"{conf:.3f}")
 
-def loop_one_sensor(s, cli):
-    sid = s["id"]
-    base = s["mqtt_topic_base"]
-    img = fetch_bgr(s["snapshot_url"])
-    roi = crop(img, s["roi_display"])
+                # heuristika: strip leading zeros → int
+                if txt:
+                    stripped = txt.lstrip("0")
+                    if stripped == "": stripped = "0"
+                    try:
+                        v = int(stripped)
+                        # vyber bližší z T1/T2 a aktualizuj (tu je len príklad)
+                        last_t1 = st.get(f"{sid}.t1", int(s.get("t1_init", 0)))
+                        last_t2 = st.get(f"{sid}.t2", int(s.get("t2_init", 0)))
+                        if abs(v - last_t1) <= abs(v - last_t2):
+                            st[f"{sid}.t1"] = v
+                            mqtt.pub(base, "t1", str(v))
+                        else:
+                            st[f"{sid}.t2"] = v
+                            mqtt.pub(base, "t2", str(v))
+                        st[f"{sid}.total"] = v
+                        mqtt.pub(base, "total", str(v))
+                    except ValueError:
+                        pass
 
-    digits, conf = ocr_digits(roi, upscale=UPSCALE)
-    publish(cli, base, "ocr_raw", digits or "")
-    publish(cli, base, "ocr_conf", f"{conf:.2f}")
-
-    if not digits or conf < CONF_MIN:
-        LOG.info("[%s] low conf (%.2f) or empty. skip.", sid, conf)
-        return
-
-    val = digits_to_int(digits)
-    st = ST.load(sid, s.get("initial_t1",0), s.get("initial_t2",0))
-
-    bucket = nearest_bucket(val, st["t1"], st["t2"])
-
-    # monotónnosť – neprepisovať späť menším číslom
-    if val >= st[bucket]:
-        st[bucket] = val
-        st["last_good"] = {"bucket": bucket, "val": val, "conf": conf, "ts": time.time()}
-        ST.save(sid, st)
-        publish(cli, base, f"{bucket}", st[bucket])
-        publish(cli, base, "total", st["t1"] + st["t2"])
-        LOG.info("[%s] %s <- %s (conf %.2f)", sid, bucket, val, conf)
-    else:
-        LOG.info("[%s] %s candidate %s < stored %s → ignored",
-                 sid, bucket, val, st[bucket])
+        except Exception as e:
+            logging.warning(f"[{sid}] iteration error: {e.__class__.__name__}: {e}")
 
 def main():
-    cli = mqtt_client()
+    from app.config import load_config
+    cfg = load_config("/app/config/sensors.yaml")
+    st  = State("/app/state/state.json")
+    mqtt = Mqtt()  # pripojí sa v __init__
+
+    logging.info("vision-reader started; poll=%.2fs", POLL)
+    # nekonečná slučka s pevnou periódou
     while True:
-        for s in CFG["sensors"]:
-            try:
-                loop_one_sensor(s, cli)
-            except Exception as e:
-                LOG.warning("[%s] error: %s", s.get("id"), e)
-        cli.loop(timeout=0.1)
-        time.sleep(POLL)
+        t0 = time.time()
+        try:
+            process_all(mqtt, cfg, st)
+        except Exception as e:
+            logging.error("top-level iteration error: %s: %s", e.__class__.__name__, e)
+        dt = time.time() - t0
+        if DEBUG: logging.debug("loop done in %.3fs", dt)
+        time.sleep(max(0.0, POLL - dt))
 
 if __name__ == "__main__":
     main()
