@@ -96,7 +96,7 @@ def process_all(mqtt: Mqtt, cfg, st: State):
                     st, f"{sid}.t1", v, init_t1, max_step
                 )
                 if updated:
-                    mqtt.pub(base, "t1", str(stored))
+                    mqtt.pub(base, "t1", str(stored), true)
                     last_t1 = stored
                     LOG.info("[%s] -> t1 := %s", sid, stored)
                 else:
@@ -106,7 +106,7 @@ def process_all(mqtt: Mqtt, cfg, st: State):
                     st, f"{sid}.t2", v, init_t2, max_step
                 )
                 if updated:
-                    mqtt.pub(base, "t2", str(stored))
+                    mqtt.pub(base, "t2", str(stored), true)
                     last_t2 = stored
                     LOG.info("[%s] -> t2 := %s", sid, stored)
                 else:
@@ -114,7 +114,7 @@ def process_all(mqtt: Mqtt, cfg, st: State):
 
             total = last_t1 + last_t2
             st[f"{sid}.total"] = total
-            mqtt.pub(base, "total", str(total))
+            mqtt.pub(base, "total", str(total), true)
             LOG.debug("[%s] state after:  t1=%s t2=%s total=%s", sid, last_t1, last_t2, total)
 
         except Exception as e:
