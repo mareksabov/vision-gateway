@@ -2,15 +2,15 @@ global:
   poll_interval_s: 4
   conf_threshold: 0.6
   roi_upscale: 2
-  max_step_kwh: 10
+  max_step_kwh: 2
 sensors:
 - id: electricity_main
   snapshot_url: http://192.168.30.150:8080/shot.jpg
   mqtt_topic_base: ha/electricity
   roi_display:
-  - 289
-  - 625
-  - 418
-  - 130
-  initial_t1: 13413
-  initial_t2: 17588
+  - 292
+  - 626
+  - 426
+  - 146
+  initial_t1: 13485
+  initial_t2: 17644
