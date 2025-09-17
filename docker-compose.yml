@@ -27,4 +27,5 @@ services:
       LOG_LEVEL: INFO
     volumes:
       - ./config:/app/config
+      - ./state:/app/state
     command: ["python", "-u", "roi_web/server.py"]

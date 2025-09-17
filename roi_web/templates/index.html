@@ -44,6 +44,28 @@
                 </div>
             </div>
 
+            <!-- Manual override -->
+            <div class="panel" style="margin-top:16px">
+                <div class="toolbar" style="grid-template-columns: 1fr auto;">
+                    <div class="field">
+                        <label for="ov-sel">Manual override</label>
+                        <select id="ov-sel"></select>
+                        <button class="btn-primary" onclick="loadCurrent()">Load current</button>
+                    </div>
+                    <button class="btn-accent" onclick="applyOverride()">Save override</button>
+                </div>
+                <div class="content">
+                    <div class="status" style="margin-top:0">
+                        <div class="stat">T1 (kWh): <b><input id="ov-t1" type="number" step="0.01" inputmode="decimal"
+                                    style="width:140px"></b></div>
+                        <div class="stat">T2 (kWh): <b><input id="ov-t2" type="number" step="0.01" inputmode="decimal"
+                                    style="width:140px"></b></div>
+                        <div class="stat">Note: <b>total = T1 + T2</b></div>
+                        <div class="stat">Timestamp updates automatically</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="footer">
                 <span>Tip: if the snapshot is noisy, try a smaller and more precise ROI.</span>
                 <span id="saveStatus">•</span>
@@ -143,6 +165,8 @@
                 console.error(e);
                 setStatus('error while loading');
             });
+
+            syncOverrideSensors();
         }
 
         c.addEventListener('mousedown', (e) => {
@@ -195,6 +219,61 @@
         window.loadImg = loadImg;
         window.save = save;
         window.resetROI = resetROI;
+
+        // --- Manual override state/refs ---
+        const ovSel = document.getElementById('ov-sel');
+        const ovT1 = document.getElementById('ov-t1');
+        const ovT2 = document.getElementById('ov-t2');
+
+        function syncOverrideSensors() {
+            ovSel.innerHTML = '';
+            (sensors || []).forEach((x, i) => {
+                const o = document.createElement('option');
+                o.value = x.id ?? `sensor${i}`;
+                o.text = x.id ?? `sensor ${i}`;
+                ovSel.add(o);
+            });
+        }
+
+        // ... po tom, čo naplníš hlavný <select id="sel"> ...
+        syncOverrideSensors();
+
+        function loadCurrent() {
+            const id = ovSel.value;
+            fetch('/api/state/' + encodeURIComponent(id))
+                .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+                .then(res => {
+                    const last = res.last || {};
+                    ovT1.value = (last[id + '.t1'] ?? '');
+                    ovT2.value = (last[id + '.t2'] ?? '');
+                })
+                .catch(() => { alert('Not available.'); ovT1.value = ''; ovT2.value = ''; });
+        }
+
+        function applyOverride() {
+            const id = ovSel.value;
+            const body = { sensor_id: id };
+            const t1 = ovT1.value.trim();
+            const t2 = ovT2.value.trim();
+            if (t1 !== '') body.t1 = t1;
+            if (t2 !== '') body.t2 = t2;
+
+            if (!('t1' in body) && !('t2' in body)) {
+                alert('Enter T1 and/or T2.'); return;
+            }
+
+            fetch('/api/state/tariffs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            })
+                .then(r => r.json())
+                .then(j => {
+                    if (!j.ok) { alert('Error: ' + j.error); return; }
+                    alert('Saved ✓\n' + JSON.stringify(j.saved, null, 2));
+                })
+                .catch(() => alert('Network error'));
+        }
     </script>
 </body>
 
