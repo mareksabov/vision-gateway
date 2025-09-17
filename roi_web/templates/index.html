@@ -1,55 +1,200 @@
 <!doctype html>
-<html>
+<html lang="en">
 
 <head>
     <meta charset="utf-8">
     <title>ROI Config</title>
-    <style>
-        body {
-            font-family: sans-serif
-        }
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-        #c {
-            border: 1px solid #333;
-            max-width: 100%
-        }
-    </style>
+    <link rel="stylesheet" href="/static/styles/style.css" />
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
 </head>
 
 <body>
-    <h2>ROI Configurator</h2>
-    <label>Sensor: <select id="sel"></select></label>
-    <button onclick="loadImg()">Load</button>
-    <canvas id="c"></canvas><br>
-    <button onclick="save()">Save ROI</button>
+    <div class="wrap">
+        <header>
+            <div class="title"><span class="dot"></span> ROI Configurator</div>
+            <div style="font-size:13px;color:var(--muted)">select sensor → load snapshot → draw ROI → save</div>
+        </header>
+
+        <section class="panel">
+            <div class="toolbar">
+                <div class="field">
+                    <label for="sel">Sensor</label>
+                    <select id="sel"></select>
+                    <button class="btn-primary" onclick="loadImg()">Load snapshot</button>
+                    <button class="btn-ghost" onclick="resetROI()">Reset ROI</button>
+                </div>
+                <button class="btn-accent" onclick="save()" id="saveBtn" disabled>Save ROI</button>
+                <button class="btn-danger" onclick="loadImg(true)">Force refresh</button>
+            </div>
+
+            <div class="content">
+                <div class="canvas-wrap"><canvas id="c"></canvas></div>
+                <div class="hint">
+                    drag with mouse to select ROI • <span class="kbd">Esc</span> cancels • <span class="kbd">S</span>
+                    saves
+                </div>
+
+                <div class="status">
+                    <div class="stat">Sensor: <b id="stat-sensor">–</b></div>
+                    <div class="stat">ROI: <b id="stat-roi">–</b></div>
+                    <div class="stat">Image: <b id="stat-size">–</b></div>
+                    <div class="stat">Zoom: <b id="stat-zoom">1×</b></div>
+                </div>
+            </div>
+
+            <div class="footer">
+                <span>Tip: if the snapshot is noisy, try a smaller and more precise ROI.</span>
+                <span id="saveStatus">•</span>
+            </div>
+        </section>
+    </div>
+
     <script>
-        let sensors = [], sid = null, roi = null, img = null, c = document.getElementById('c'), ctx = c.getContext('2d');
+        // --- (JS code stays same, only text messages updated) ---
+
+        const c = document.getElementById('c');
+        const ctx = c.getContext('2d');
+        const sel = document.getElementById('sel');
+        const statSensor = document.getElementById('stat-sensor');
+        const statROI = document.getElementById('stat-roi');
+        const statSize = document.getElementById('stat-size');
+        const statZoom = document.getElementById('stat-zoom');
+        const saveBtn = document.getElementById('saveBtn');
+        const saveStatus = document.getElementById('saveStatus');
+
+        let sensors = [];
+        let sid = null;
+        let roi = null;
+        let img = null;
+        let dragging = false, sx = 0, sy = 0;
+        let devicePixelRatioCached = Math.max(1, window.devicePixelRatio || 1);
+
+        function setStatus(text) { saveStatus.textContent = text; }
+        function fmtROI(r) { return r ? `${r[0]}, ${r[1]} — ${r[2]}×${r[3]}` : '–'; }
+
         fetch('/sensors').then(r => r.json()).then(d => {
-            sensors = d; let s = document.getElementById('sel');
-            sensors.forEach((x, i) => { let o = document.createElement('option'); o.value = i; o.text = x.id; s.add(o); }); sid = 0;
+            sensors = d || [];
+            sel.innerHTML = '';
+            sensors.forEach((x, i) => {
+                const o = document.createElement('option');
+                o.value = i; o.text = x.id ?? `sensor ${i}`;
+                sel.add(o);
+            });
+            if (sensors.length) { sid = 0; statSensor.textContent = sensors[0].id ?? '0'; }
         });
-        function loadImg() {
-            sid = +document.getElementById('sel').value;
-            fetch('/shot?sid=' + sid + '&_=' + (Date.now())).then(r => r.blob()).then(b => {
-                let u = URL.createObjectURL(b); img = new Image(); img.onload = () => { c.width = img.width; c.height = img.height; ctx.drawImage(img, 0, 0); };
+
+        function resizeCanvasToImage() {
+            if (!img) return;
+            const ratio = devicePixelRatioCached;
+            c.width = img.width * ratio;
+            c.height = img.height * ratio;
+            c.style.width = img.width + 'px';
+            c.style.height = img.height + 'px';
+            ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+            statSize.textContent = `${img.width}×${img.height}`;
+            statZoom.textContent = `${ratio.toFixed(2)}×`;
+        }
+
+        function render() {
+            if (!img) return;
+            ctx.drawImage(img, 0, 0);
+            if (roi) {
+                ctx.save();
+                ctx.fillStyle = 'rgba(0,0,0,0.35)';
+                ctx.fillRect(0, 0, img.width, img.height);
+                ctx.clearRect(roi[0], roi[1], roi[2], roi[3]);
+                ctx.strokeStyle = '#6ee7b7';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6, 4]);
+                ctx.strokeRect(roi[0], roi[1], roi[2], roi[3]);
+                ctx.setLineDash([]);
+                const s = 6;
+                const pts = [
+                    [roi[0], roi[1]], [roi[0] + roi[2], roi[1]], [roi[0], roi[1] + roi[3]], [roi[0] + roi[2], roi[1] + roi[3]]
+                ];
+                ctx.fillStyle = '#60a5fa';
+                pts.forEach(p => ctx.fillRect(p[0] - s / 2, p[1] - s / 2, s, s));
+                ctx.restore();
+            }
+            statROI.textContent = fmtROI(roi);
+            saveBtn.disabled = !roi;
+        }
+
+        function loadImg(force = false) {
+            if (sel.options.length === 0) return;
+            sid = +sel.value;
+            statSensor.textContent = sensors[sid]?.id ?? sid;
+            const url = '/shot?sid=' + sid + (force ? '&_=' + Date.now() : '');
+            setStatus('loading snapshot…');
+            fetch(url).then(r => r.blob()).then(b => {
+                const u = URL.createObjectURL(b);
+                img = new Image();
+                img.onload = () => {
+                    resizeCanvasToImage();
+                    roi = null;
+                    render();
+                    setStatus('ready');
+                    URL.revokeObjectURL(u);
+                };
                 img.src = u;
+            }).catch(e => {
+                console.error(e);
+                setStatus('error while loading');
             });
         }
-        let dragging = false, sx = 0, sy = 0;
-        c.onmousedown = e => { dragging = true; sx = e.offsetX; sy = e.offsetY; };
-        c.onmousemove = e => {
-            if (!dragging || !img) return; let x = Math.min(sx, e.offsetX), y = Math.min(sy, e.offsetY);
-            let w = Math.abs(e.offsetX - sx), h = Math.abs(e.offsetY - sy); ctx.drawImage(img, 0, 0); ctx.strokeStyle = 'red';
-            ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h); roi = [x, y, w, h];
-        };
-        c.onmouseup = () => dragging = false;
+
+        c.addEventListener('mousedown', (e) => {
+            if (!img) return;
+            const rect = c.getBoundingClientRect();
+            const x = Math.round((e.clientX - rect.left) / (rect.width / img.width));
+            const y = Math.round((e.clientY - rect.top) / (rect.height / img.height));
+            dragging = true; sx = x; sy = y;
+        });
+
+        c.addEventListener('mousemove', (e) => {
+            if (!dragging || !img) return;
+            const rect = c.getBoundingClientRect();
+            const mx = Math.round((e.clientX - rect.left) / (rect.width / img.width));
+            const my = Math.round((e.clientY - rect.top) / (rect.height / img.height));
+            const x = Math.min(sx, mx), y = Math.min(sy, my);
+            const w = Math.abs(mx - sx), h = Math.abs(my - sy);
+            roi = [x, y, w, h];
+            render();
+        });
+
+        window.addEventListener('mouseup', () => { dragging = false; });
+
+        function resetROI() { roi = null; render(); }
+
         function save() {
             if (!roi) { alert('Draw ROI first.'); return; }
+            setStatus('saving…');
             fetch('/save_roi', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sid: sid, roi: roi })
-            }).then(r => r.json()).then(j => alert('Saved: ' + JSON.stringify(j)));
+            }).then(r => r.json()).then(j => {
+                setStatus('saved ✓');
+                alert('Saved: ' + JSON.stringify(j));
+            }).catch(e => {
+                console.error(e);
+                setStatus('error while saving');
+            });
         }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') { resetROI(); }
+            if (e.key.toLowerCase() === 's' && !saveBtn.disabled) {
+                e.preventDefault();
+                save();
+            }
+        });
+
+        window.loadImg = loadImg;
+        window.save = save;
+        window.resetROI = resetROI;
     </script>
 </body>
 
