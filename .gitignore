@@ -2,3 +2,4 @@
 paddle_cache/*
 state/*
 secret/mqtt.env
+.env
