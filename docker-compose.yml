@@ -15,6 +15,7 @@ services:
       - ./config:/app/config
       - ./state:/app/state
       - ./paddle_cache:/root/.paddleocr
+      - ./debug:/app/debug
     command: ["python", "-u", "app/main.py"]
 
   roi-web:

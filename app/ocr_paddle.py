@@ -46,28 +46,35 @@ def _prep_gray(bgr: np.ndarray, upscale: int) -> np.ndarray:
     return g
 
 def _binarize(g: np.ndarray) -> np.ndarray:
+    # th = cv2.adaptiveThreshold(
+    #     g, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+    #     cv2.THRESH_BINARY_INV, 31, 7
+    # )
     th = cv2.adaptiveThreshold(
-        g, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY_INV, 31, 7
+    g, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+    cv2.THRESH_BINARY_INV, 51, 5
     )
     k = cv2.getStructuringElement(cv2.MORPH_RECT, (2,2))
     th = cv2.morphologyEx(th, cv2.MORPH_OPEN,  k, iterations=1)
     th = cv2.morphologyEx(th, cv2.MORPH_CLOSE, k, iterations=1)
     return th
 
-def _pick_digits(text: str) -> str:
-    # vyber najlepší blok 5–8 číslic; ak dlhšie, vezmi pravých 6
+def _pick_digits(text: str, target_len=7) -> str:
     text = text or ""
-    blocks = re.findall(r"\d{5,8}", text)
-    if not blocks:
-        only = re.sub(r"\D", "", text)
-        if not only: return ""
-        cand = only
-    else:
-        m = max(len(b) for b in blocks)
-        cand = [b for b in blocks if len(b) == m][-1]
-    if len(cand) > 7:
-        cand = cand[-7:]
+    only = re.sub(r"\D", "", text)
+    if not only:
+        return ""
+    # preferuj najdlhší blok číslic
+    blocks = re.findall(r"\d{5,}", only)
+    cand = max(blocks, key=len) if blocks else only
+
+    # normalize na target_len
+    if len(cand) > target_len:
+        # orezavaj zľava (Paddle často pridáva extra nulu na koniec)
+        cand = cand[:target_len]
+    elif len(cand) < target_len:
+        cand = cand.zfill(target_len)
+
     return cand
 
 def _ocr_image(bgr_img):
