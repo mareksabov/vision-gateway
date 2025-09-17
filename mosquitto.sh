@@ -1,0 +1,1 @@
+mosquitto_sub -h 192.168.30.173 -p 1883 -u mqtt-user -P mqtt-pass -t "ha/electricity/#" -v
