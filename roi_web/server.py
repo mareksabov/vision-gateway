@@ -6,7 +6,7 @@ import yaml, time
 import cv2, numpy as np, requests
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
-CFG_PATH = "config/sensors.yaml"
+CFG_PATH = os.getenv("CONFIG_PATH", "/app/config/sensors.yaml")
 
 from pathlib import Path
 

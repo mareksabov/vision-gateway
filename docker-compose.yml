@@ -10,7 +10,8 @@ services:
       MQTT_PASS: ${MQTT_PASS}
       LOG_LEVEL: ${LOG_LEVEL}
       APP_DEBUG: ${APP_DEBUG}
-      #POLL_INTERVAL_S: "3"
+      CONFIG_PATH: ${CONFIG_PATH}
+      # POLL_INTERVAL_S: "3"
     volumes:
       - ./config:/app/config
       - ./state:/app/state
@@ -26,6 +27,7 @@ services:
       - "8088:8088"
     environment:
       LOG_LEVEL: INFO
+      CONFIG_PATH: ${CONFIG_PATH}
     volumes:
       - ./config:/app/config
       - ./state:/app/state

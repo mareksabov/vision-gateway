@@ -8,6 +8,7 @@ from app.config import load_config
 
 POLL   = float(os.getenv("POLL_INTERVAL_S", "5"))
 DEBUG  = os.getenv("APP_DEBUG", "0") == "1"
+CFG_PATH = "/app/config/sensors.yaml"
 
 logging.basicConfig(
     level=logging.DEBUG if DEBUG else logging.INFO,
@@ -94,7 +95,8 @@ def process_all(mqtt: Mqtt, cfg, st: State):
             LOG.warning("[%s] iteration error: %s: %s", sid, e.__class__.__name__, e)
 
 def main():
-    cfg = load_config("/app/config/sensors.yaml")
+    cfg = load_config(CFG_PATH)
+    cfg_mtime = os.path.getmtime(CFG_PATH)
     st  = State("/app/state/state.json")
     mqtt = Mqtt()
 
@@ -102,6 +104,18 @@ def main():
     while True:
         t0 = time.time()
         try:
+            # --- HOT RELOAD ---
+            try:
+                m = os.path.getmtime(CFG_PATH)
+                if m != cfg_mtime:
+                    new_cfg = load_config(CFG_PATH)
+                    cfg = new_cfg
+                    cfg_mtime = m
+                    LOG.info("config reloaded (sensors.yaml changed)")
+            except FileNotFoundError:
+                LOG.warning("config file missing: %s", CFG_PATH)
+            # -------------------
+
             process_all(mqtt, cfg, st)
             mqtt.loop(0.1)
         except Exception as e:
