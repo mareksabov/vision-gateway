@@ -6,8 +6,7 @@ from app.state import State
 from app.mqtt_pub import Mqtt
 from app.config import load_config
 
-POLL   = float(os.getenv("POLL_INTERVAL_S", "5"))
-DEBUG  = os.getenv("APP_DEBUG", "0") == "1"
+DEBUG    = os.getenv("APP_DEBUG", "0") == "1"
 CFG_PATH = "/app/config/sensors.yaml"
 
 logging.basicConfig(
@@ -23,11 +22,20 @@ def digits_to_int(d: str) -> int:
 def nearest_bucket(val: int, t1: int, t2: int) -> str:
     return "t1" if abs(val - t1) <= abs(val - t2) else "t2"
 
+def poll_from(cfg) -> float:
+    """
+    Env POLL_INTERVAL_S má prednosť. Ak nie je, berie sa z configu
+    global.poll_interval_s. Fallback 5.
+    """
+    g = cfg.get("global", {})
+    cfg_poll = g.get("poll_interval_s", 5)
+    return float(os.getenv("POLL_INTERVAL_S", str(cfg_poll)))
+
 def process_all(mqtt: Mqtt, cfg, st: State):
     g = cfg.get("global", {})
-    conf_min   = float(g.get("conf_threshold", 0.60))
-    upscale    = int(g.get("roi_upscale", 2))
-    max_step   = int(g.get("max_step_kwh", 50))  # NOVÉ: limit skoku
+    conf_min = float(g.get("conf_threshold", 0.60))
+    upscale  = int(g.get("roi_upscale", 2))
+    max_step = int(g.get("max_step_kwh", 50))  # limit skoku
 
     for s in cfg["sensors"]:
         sid  = s["id"]
@@ -97,10 +105,12 @@ def process_all(mqtt: Mqtt, cfg, st: State):
 def main():
     cfg = load_config(CFG_PATH)
     cfg_mtime = os.path.getmtime(CFG_PATH)
-    st  = State("/app/state/state.json")
+    st   = State("/app/state/state.json")
     mqtt = Mqtt()
 
-    LOG.info("vision-reader started; poll=%.2fs", POLL)
+    poll = poll_from(cfg)
+    LOG.info("vision-reader started; poll=%.2fs", poll)
+
     while True:
         t0 = time.time()
         try:
@@ -108,10 +118,10 @@ def main():
             try:
                 m = os.path.getmtime(CFG_PATH)
                 if m != cfg_mtime:
-                    new_cfg = load_config(CFG_PATH)
-                    cfg = new_cfg
+                    cfg = load_config(CFG_PATH)
                     cfg_mtime = m
-                    LOG.info("config reloaded (sensors.yaml changed)")
+                    poll = poll_from(cfg)  # prepočítaj po reloade
+                    LOG.info("config reloaded; poll=%.2fs", poll)
             except FileNotFoundError:
                 LOG.warning("config file missing: %s", CFG_PATH)
             # -------------------
@@ -121,8 +131,9 @@ def main():
         except Exception as e:
             LOG.error("top-level iteration error: %s: %s", e.__class__.__name__, e)
         dt = time.time() - t0
-        if DEBUG: LOG.debug("loop done in %.3fs", dt)
-        time.sleep(max(0.0, POLL - dt))
+        if DEBUG:
+            LOG.debug("loop done in %.3fs", dt)
+        time.sleep(max(0.0, poll - dt))
 
 if __name__ == "__main__":
     main()
