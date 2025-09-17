@@ -122,24 +122,38 @@
         function render() {
             if (!img) return;
             ctx.drawImage(img, 0, 0);
+
             if (roi) {
                 ctx.save();
+
+                // stmav len okolie – ROI zostane úplne priesvitné (vidno plný obrázok)
                 ctx.fillStyle = 'rgba(0,0,0,0.35)';
-                ctx.fillRect(0, 0, img.width, img.height);
-                ctx.clearRect(roi[0], roi[1], roi[2], roi[3]);
+                ctx.beginPath();
+                ctx.rect(0, 0, img.width, img.height);                // vonkajší obdĺžnik
+                ctx.rect(roi[0], roi[1], roi[2], roi[3]);             // vnútorný (ROI)
+                ctx.fill('evenodd');                                   // <- kľúčové
+
+                // obrys ROI
                 ctx.strokeStyle = '#6ee7b7';
                 ctx.lineWidth = 2;
                 ctx.setLineDash([6, 4]);
                 ctx.strokeRect(roi[0], roi[1], roi[2], roi[3]);
                 ctx.setLineDash([]);
+
+                // rohové úchyty (voliteľné)
                 const s = 6;
                 const pts = [
-                    [roi[0], roi[1]], [roi[0] + roi[2], roi[1]], [roi[0], roi[1] + roi[3]], [roi[0] + roi[2], roi[1] + roi[3]]
+                    [roi[0], roi[1]],
+                    [roi[0] + roi[2], roi[1]],
+                    [roi[0], roi[1] + roi[3]],
+                    [roi[0] + roi[2], roi[1] + roi[3]]
                 ];
                 ctx.fillStyle = '#60a5fa';
                 pts.forEach(p => ctx.fillRect(p[0] - s / 2, p[1] - s / 2, s, s));
+
                 ctx.restore();
             }
+
             statROI.textContent = fmtROI(roi);
             saveBtn.disabled = !roi;
         }
