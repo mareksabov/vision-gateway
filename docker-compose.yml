@@ -1,0 +1,30 @@
+services:
+  reader:
+    build: .
+    container_name: vision-reader
+    restart: unless-stopped
+    environment:
+      MQTT_HOST: 192.168.30.173
+      MQTT_PORT: 1883
+      MQTT_USER: mqtt-user
+      MQTT_PASS: mqtt-pass
+      LOG_LEVEL: INFO
+      APP_DEBUG: "1"
+      #POLL_INTERVAL_S: "3"
+    volumes:
+      - ./config:/app/config
+      - ./state:/app/state
+      - ./paddle_cache:/root/.paddleocr
+    command: ["python", "-u", "app/main.py"]
+
+  roi-web:
+    build: .
+    container_name: roi-web
+    restart: unless-stopped
+    ports:
+      - "8088:8088"
+    environment:
+      LOG_LEVEL: INFO
+    volumes:
+      - ./config:/app/config
+    command: ["python", "-u", "roi_web/server.py"]

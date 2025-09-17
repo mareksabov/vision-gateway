@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>ROI Configurator</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>ROI Configurator</h2>
+    <label for="sensor">Sensor:</label>
+    <select id="sensor"></select>
+    <button onclick="loadImage()">Load</button>
+    <br><br>
+    <canvas id="canvas"></canvas>
+    <br>
+    <label for="roiType">ROI Type:</label>
+    <select id="roiType">
+        <option value="roi_led">LED ROI</option>
+        <option value="roi_display">Display ROI</option>
+        <option value="roi_tariff">Tariff ROI</option> <!-- NEW -->
+    </select>
+
+    <button onclick="saveROI()">Save ROI</button>
+
+    <script src="/static/roi.js"></script>
+</body>
+
+</html>
