@@ -224,11 +224,14 @@ def flush_mqtt(mqtt: "Mqtt", cfg: dict, st: "State"):
         t1_cur = float(_st_get(st, f"{sid}.t1", int(s.get("initial_t1", 0))))
         t2_cur = float(_st_get(st, f"{sid}.t2", int(s.get("initial_t2", 0))))
 
-        # init publikovaných hodnôt pri prvom behu
-        if f"{sid}.t1_pub" not in st._data:
-            st[f"{sid}.t1_pub"] = t1_cur
-        if f"{sid}.t2_pub" not in st._data:
-            st[f"{sid}.t2_pub"] = t2_cur
+
+        # bezpečná init publikovaných hodnôt pri prvom behu (bez st._data)
+        k1 = f"{sid}.t1_pub"
+        k2 = f"{sid}.t2_pub"
+        if st.get(k1, MISSING) is MISSING:
+            st[k1] = t1_cur
+        if st.get(k2, MISSING) is MISSING:
+            st[k2] = t2_cur
 
         # už publikované hodnoty (monotónne)
         t1_pub = float(_st_get(st, f"{sid}.t1_pub", 0))
