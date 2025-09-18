@@ -16,6 +16,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s: %(message)s",
 )
 LOG = logging.getLogger("reader")
+MISSING = object()
 
 last_published = 0
 last_get_pulse = 0
@@ -234,8 +235,8 @@ def flush_mqtt(mqtt: "Mqtt", cfg: dict, st: "State"):
             st[k2] = t2_cur
 
         # už publikované hodnoty (monotónne)
-        t1_pub = float(_st_get(st, f"{sid}.t1_pub", 0))
-        t2_pub = float(_st_get(st, f"{sid}.t2_pub", 0))
+        t1_pub = float(_st_get(st, k1, 0))
+        t2_pub = float(_st_get(st, k2, 0))
 
         t1_cur = round(t1_cur, 4)
         t2_cur = round(t2_cur, 4)
@@ -245,12 +246,12 @@ def flush_mqtt(mqtt: "Mqtt", cfg: dict, st: "State"):
         # T1: publikuj len ak narástlo
         if t1_cur > t1_pub:
             mqtt.pub(base, "t1", str(t1_cur), retain=True)
-            st[f"{sid}.t1_pub"] = t1_cur
+            st[k1] = t1_cur
             published_any = True
         # T2: publikuj len ak narástlo
         if t2_cur > t2_pub:
             mqtt.pub(base, "t2", str(t2_cur), retain=True)
-            st[f"{sid}.t2_pub"] = t2_cur
+            st[k2] = t2_cur
             published_any = True
 
         # Total: pošli iba ak sa publikovalo T1 alebo T2 v tomto cykle
