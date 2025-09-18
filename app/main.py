@@ -84,19 +84,19 @@ def process_all(mqtt: Mqtt, cfg, st: State):
             if bucket == "t1":
                 if accept_update(last_t1, v):
                     st[f"{sid}.t1"] = v
-                    mqtt.pub(base, "t1", str(v))
+                    mqtt.pub(base, "t1", str(v), retain=True)
                     last_t1 = v
                     LOG.info("[%s] -> t1 := %s", sid, v)
             else:
                 if accept_update(last_t2, v):
                     st[f"{sid}.t2"] = v
-                    mqtt.pub(base, "t2", str(v))
+                    mqtt.pub(base, "t2", str(v), retain=True)
                     last_t2 = v
                     LOG.info("[%s] -> t2 := %s", sid, v)
 
             total = last_t1 + last_t2
             st[f"{sid}.total"] = total
-            mqtt.pub(base, "total", str(total))
+            mqtt.pub(base, "total", str(total), retain=True)
             LOG.debug("[%s] state after:  t1=%s t2=%s total=%s", sid, last_t1, last_t2, total)
 
         except Exception as e:
