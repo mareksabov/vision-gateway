@@ -81,8 +81,8 @@ def process_ocr(mqtt: "Mqtt", cfg: dict, st: "State"):
             v = digits_to_int(digits)
 
             # načítaj stav so správnymi defaultmi
-            last_t1 = int(st.get(f"{sid}.t1", int(s.get("initial_t1", 0))))
-            last_t2 = int(st.get(f"{sid}.t2", int(s.get("initial_t2", 0))))
+            last_t1 = int(st.get(f"{sid}.t1_ocr", int(s.get("initial_t1", 0))))
+            last_t2 = int(st.get(f"{sid}.t2_ocr", int(s.get("initial_t2", 0))))
             LOG.debug("[%s] state before: t1=%s t2=%s", sid, last_t1, last_t2)
 
             bucket = nearest_bucket(v, last_t1, last_t2)  # "t1" alebo "t2"
@@ -194,7 +194,6 @@ def process_data(cfg: dict, st: "State"):
         t2 = float(_st_get(st, f"{sid}.t2", 0))
 
         def fix_with_ocr(ocr: int, t: float) -> float:
-            return t if int(t) >= ocr else float(ocr)
             if(int(t) >= ocr):
                 return t
             else:
@@ -224,6 +223,12 @@ def flush_mqtt(mqtt: "Mqtt", cfg: dict, st: "State"):
         # aktuálne vypočítané celé kWh (OCR drží pravdu / pulzy nič nemenia celé kWh)
         t1_cur = float(_st_get(st, f"{sid}.t1", int(s.get("initial_t1", 0))))
         t2_cur = float(_st_get(st, f"{sid}.t2", int(s.get("initial_t2", 0))))
+
+        # init publikovaných hodnôt pri prvom behu
+        if f"{sid}.t1_pub" not in st._data:
+            st[f"{sid}.t1_pub"] = t1_cur
+        if f"{sid}.t2_pub" not in st._data:
+            st[f"{sid}.t2_pub"] = t2_cur
 
         # už publikované hodnoty (monotónne)
         t1_pub = float(_st_get(st, f"{sid}.t1_pub", 0))
