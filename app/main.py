@@ -3,7 +3,8 @@ import os, time, logging
 from app.utils import fetch_bgr, crop
 from app.ocr_paddle import ocr_digits
 from app.state import State
-from app.mqtt_pub import Mqtt
+# from app.mqtt_pub import Mqtt
+from app.mqtt_pub_dev import Mqtt
 from app.config import load_config
 
 DEBUG    = os.getenv("APP_DEBUG", "0") == "1"

@@ -8,9 +8,9 @@ sensors:
   snapshot_url: http://192.168.30.150:8080/shot.jpg
   mqtt_topic_base: ha/electricity
   roi_display:
-  - 292
-  - 626
-  - 426
-  - 146
+  - 611
+  - 323
+  - 387
+  - 129
   initial_t1: 13485
   initial_t2: 17644
