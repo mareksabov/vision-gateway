@@ -6,9 +6,9 @@ from collections import deque
 class EmaSetup:
     URL = "http://192.168.30.150:8080/config"
     # zmena konštánt:
-    TIMER = 0.5           # požadovaný interval odberu (s)
+    TIMER = 0.9           # požadovaný interval odberu (s)
     SAMPLE_TIMEOUT = 0.3  # timeout HTTP < TIMER, inak sa perioda nafukuje
-    WINDOW_SECONDS = 60
+    WINDOW_SECONDS = 180
     MIN_SAMPLES = 10       # pri 1 Hz dá ~6 s dát na prvý výpočet
     MIN_CLUSTER_GAP = 1.0   # min. rozdiel centroidov, aby sme verili 2-klastrovej delbe
 
