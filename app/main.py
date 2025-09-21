@@ -8,6 +8,7 @@ from app.mqtt_pub import Mqtt
 from app.config import load_config
 from app.pulse import Pulse
 from app.tariff import Tariff
+from app.ema_setup import EmaSetup
 
 DEBUG    = os.getenv("APP_DEBUG", "0") == "1"
 CFG_PATH = "/app/config/sensors.yaml"
@@ -164,13 +165,24 @@ def process_pulse(mqtt: "Mqtt", cfg: dict, st: "State", pulse: Pulse, tariff: Ta
 
             if(is_t1):
                 t1 = float(_st_get(st, f"{sid}.t1", 0))
+                t1_ocr = float(_st_get(st, f"{sid}.t1_ocr", 0))
                 t1 += delta * weight_of_pulse
+
+                if int(t1) > int(t1_ocr):
+                    t1 = int(t1) + 0.99
+
                 st[f"{sid}.t1"] = t1
                 print(f"New t1: {t1}")
             else:
                 t2 = float(_st_get(st, f"{sid}.t2", 0))
+                t1_ocr = float(_st_get(st, f"{sid}.t2_ocr", 0))
                 t2 += delta * weight_of_pulse
+
+                if int(t2) > int(t2_ocr):
+                    t2 = int(t2) + 0.99
+
                 st[f"{sid}.t2"] = t2
+                print(f"New t2: {t2}")
 
 
         last_pulse_value = count
@@ -290,6 +302,9 @@ def main():
     mqtt = Mqtt()
     pulse = Pulse()
     tariff = Tariff()
+
+    ema_setup = EmaSetup()
+    ema_setup.run()
 
     poll = poll_from(cfg)
     LOG.info("vision-reader started; poll=%.2fs", poll)
