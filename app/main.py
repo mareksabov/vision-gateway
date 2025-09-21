@@ -7,6 +7,7 @@ from app.state import State
 from app.mqtt_pub_dev import Mqtt
 from app.config import load_config
 from app.pulse import Pulse
+from app.tariff import Tariff
 
 DEBUG    = os.getenv("APP_DEBUG", "0") == "1"
 CFG_PATH = "/app/config/sensors.yaml"
@@ -131,7 +132,7 @@ def process_ocr(mqtt: "Mqtt", cfg: dict, st: "State"):
             LOG.warning("[%s] iteration error: %s: %s", sid, e.__class__.__name__, e)
 
 
-def process_pulse(mqtt: "Mqtt", cfg: dict, st: "State", pulse: Pulse):
+def process_pulse(mqtt: "Mqtt", cfg: dict, st: "State", pulse: Pulse, tariff: Tariff):
     """
     Zatiaľ no-op (žiadna nová funkcionalita). V ďalšom kroku sem doplníme čítanie /pulse
     a interpoláciu t1_live/t2_live tak, aby to nezasahovalo do existujúcich tém.
@@ -141,7 +142,7 @@ def process_pulse(mqtt: "Mqtt", cfg: dict, st: "State", pulse: Pulse):
     global last_pulse_value
 
     weight_of_pulse = 1/1000
-    is_t1 = True
+    is_t1 = not tariff.is_t2()
 
     if(time.time() - last_get_pulse > 5):
         count = pulse.get_pulse_count()
@@ -170,13 +171,13 @@ def process_pulse(mqtt: "Mqtt", cfg: dict, st: "State", pulse: Pulse):
     else:
         pass
 
-def process_all(mqtt: Mqtt, cfg, st: State, pulse: Pulse):
+def process_all(mqtt: Mqtt, cfg, st: State, pulse: Pulse, tariff: Tariff):
     """
     Backward-compatible wrapper: najprv OCR, potom (neskôr) pulzy.
     Ponechávame názov, aby nič inde neprasklo.
     """
     process_ocr(mqtt, cfg, st)
-    process_pulse(mqtt, cfg, st, pulse)    
+    process_pulse(mqtt, cfg, st, pulse, tariff)    
 
     process_data(cfg, st)
 
@@ -279,9 +280,11 @@ def main():
     st   = State("/app/state/state.json")
     mqtt = Mqtt()
     pulse = Pulse()
+    tariff = Tariff()
 
     poll = poll_from(cfg)
     LOG.info("vision-reader started; poll=%.2fs", poll)
+    LOG.info(f"IsHDO: {tariff.is_t2()}")
 
     while True:
         t0 = time.time()
@@ -298,7 +301,7 @@ def main():
                 LOG.warning("config file missing: %s", CFG_PATH)
             # -------------------
 
-            process_all(mqtt, cfg, st, pulse)
+            process_all(mqtt, cfg, st, pulse, tariff)
             mqtt.loop(0.1)
         except Exception as e:
             LOG.error("top-level iteration error: %s: %s", e.__class__.__name__, e)
