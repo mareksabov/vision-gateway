@@ -25,7 +25,6 @@ class EmaSetup:
 
     def run(self):
         self.is_running = True
-        self.process()
 
     def stop(self):
         self.is_running = False
@@ -97,17 +96,14 @@ class EmaSetup:
             if ema_R <= self.threshold_off:
                 self.state = "OFF"
 
-    def process(self):
-        # pevný „metronóm“ cez monotonic time
-        next_tick = time.monotonic()
-        while self.is_running:
-            now_mono = time.monotonic()
-            # ak sme skôr, dospíme do presného času tiknutia
-            if now_mono < next_tick:
-                time.sleep(next_tick - now_mono)
-            # nastav ďalší tick ešte pred I/O, aby drift nebol kumulatívny
-            next_tick += self.TIMER
+    # pevný „metronóm“ cez monotonic time
+    last_ema_time = 0
 
+
+    def tick(self):
+
+        # while self.is_running:
+        if(time.time() - self.last_ema_time > self.TIMER):            
             try:
                 # rýchly timeout, nech to nebrzdí periodu
                 response = requests.get(self.URL, timeout=self.SAMPLE_TIMEOUT)
@@ -115,7 +111,8 @@ class EmaSetup:
                     data = response.json()
                     ema_R = data.get("ema_R")
                     if ema_R is None:
-                        continue
+                        self.last_ema_time = time.time()
+                        pass
 
                     # 1) vzorka do okna
                     now_wall = time.time()
@@ -136,8 +133,12 @@ class EmaSetup:
             except requests.Timeout:
                 # tiché vynechanie – udržíme periodu
                 print("HTTP timeout")
-                continue
+                self.last_ema_time = time.time()
+                pass
             except requests.RequestException as e:
                 print(f"HTTP error: {e}")
             except ValueError as e:
                 print(f"JSON error: {e}")
+
+            self.last_ema_time = time.time()
+

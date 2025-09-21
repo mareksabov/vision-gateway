@@ -23,6 +23,7 @@ MISSING = object()
 last_published = 0
 last_get_pulse = 0
 last_pulse_value = -1
+last_poll_time = 0
 
 
 def digits_to_int(d: str) -> int:
@@ -190,17 +191,24 @@ def process_pulse(mqtt: "Mqtt", cfg: dict, st: "State", pulse: Pulse, tariff: Ta
     else:
         pass
 
-def process_all(mqtt: Mqtt, cfg, st: State, pulse: Pulse, tariff: Tariff):
+def process_all(mqtt: Mqtt, cfg, st: State, pulse: Pulse, tariff: Tariff, poll_interval: float):
     """
     Backward-compatible wrapper: najprv OCR, potom (neskôr) pulzy.
     Ponechávame názov, aby nič inde neprasklo.
     """
-    process_ocr(mqtt, cfg, st)
+
+    global last_poll_time
+
+    if(time.time() - last_poll_time > poll_interval):
+        process_ocr(mqtt, cfg, st)
+        last_poll_time = time.time()
+
     process_pulse(mqtt, cfg, st, pulse, tariff)    
 
     process_data(cfg, st)
 
     flush_mqtt(mqtt, cfg, st)
+
 
 # Helper: bezpečné načítanie s defaultom
 def _st_get(st, key, default):
@@ -304,7 +312,7 @@ def main():
     tariff = Tariff()
 
     ema_setup = EmaSetup()
-    # ema_setup.run()
+    ema_setup.run()
 
     poll = poll_from(cfg)
     LOG.info("vision-reader started; poll=%.2fs", poll)
@@ -325,14 +333,15 @@ def main():
                 LOG.warning("config file missing: %s", CFG_PATH)
             # -------------------
 
-            process_all(mqtt, cfg, st, pulse, tariff)
+            process_all(mqtt, cfg, st, pulse, tariff, poll)
+            ema_setup.tick()
             mqtt.loop(0.1)
         except Exception as e:
             LOG.error("top-level iteration error: %s: %s", e.__class__.__name__, e)
         dt = time.time() - t0
         if DEBUG:
             LOG.debug("loop done in %.3fs", dt)
-        time.sleep(max(0.0, poll - dt))
+        # time.sleep(max(0.0, poll - dt))
 
 if __name__ == "__main__":
     main()
