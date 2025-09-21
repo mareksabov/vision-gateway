@@ -2,7 +2,7 @@ global:
   poll_interval_s: 4
   conf_threshold: 0.6
   roi_upscale: 2
-  max_step_kwh: 2
+  max_step_kwh: 3
   imp_per_kwh: 1000           # impulzov na 1 kWh
   pulse_poll_s: 5             # ako často čítať /pulse
   round_kwh_decimals: 4       # zaokrúhlenie T1/T2 pred publikovaním
