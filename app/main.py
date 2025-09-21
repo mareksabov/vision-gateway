@@ -74,8 +74,8 @@ def process_ocr(mqtt: "Mqtt", cfg: dict, st: "State"):
             # ulož surové OCR metadáta (užitočné na diagnostiku / UI)
             st[f"{sid}.ocr_raw"]  = digits or ""
             st[f"{sid}.ocr_conf"] = float(f"{conf:.2f}")
-            mqtt.pub(base, "ocr_raw", str(st[f"{sid}.ocr_raw"] ), retain=False)
-            mqtt.pub(base, "ocr_conf", str(st[f"{sid}.ocr_conf"] ), retain=False)
+            mqtt.pub(base, "ocr_raw", st.get([f"{sid}.ocr_raw"]), retain=False)
+            mqtt.pub(base, "ocr_conf", st.get([f"{sid}.ocr_conf"]), retain=False)
 
             if not digits or conf < conf_min:
                 LOG.info("[%s] conf %.2f < %.2f → skip update", sid, conf, conf_min)
