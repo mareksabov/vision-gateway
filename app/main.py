@@ -282,7 +282,7 @@ def flush_mqtt(mqtt: "Mqtt", cfg: dict, st: "State"):
             total_cur = int(total_cur)
             mqtt.pub(base, "total", str(total_cur), retain=True)
             st[f"{sid}.total_pub"] = total_cur
-            last_published = time.time()
+            # last_published = time.time()
         else:
             if time.time() - last_published > publish_interval:
                 total_cur = t1_cur + t2_cur
