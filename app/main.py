@@ -223,7 +223,7 @@ def process_data(cfg: dict, st: "State"):
         t2 = float(_st_get(st, f"{sid}.t2", 0))
 
         def fix_with_ocr(ocr: int, t: float) -> float:
-            if(int(t) >= ocr):
+            if(int(t) <= ocr):
                 return t
             else:
                 print(f"Fixing with ocr: {ocr} => t: {t}")
