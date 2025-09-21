@@ -3,8 +3,8 @@ import os, time, logging
 from app.utils import fetch_bgr, crop
 from app.ocr_paddle import ocr_digits
 from app.state import State
-# from app.mqtt_pub import Mqtt
-from app.mqtt_pub_dev import Mqtt
+from app.mqtt_pub import Mqtt
+# from app.mqtt_pub_dev import Mqtt
 from app.config import load_config
 from app.pulse import Pulse
 from app.tariff import Tariff
@@ -141,11 +141,16 @@ def process_pulse(mqtt: "Mqtt", cfg: dict, st: "State", pulse: Pulse, tariff: Ta
     global last_get_pulse
     global last_pulse_value
 
-    weight_of_pulse = 1/1000
+    g = cfg.get("global", {})
+    imp_per_kwh = int(g.get("imp_per_kwh", 1000))
+    pulse_poll_s = float(g.get("pulse_poll_s", 5))
+    pulse_url = g.get("pulse_url", "")
+
+    weight_of_pulse = 1.0 / imp_per_kwh
     is_t1 = not tariff.is_t2()
 
-    if(time.time() - last_get_pulse > 5):
-        count = pulse.get_pulse_count()
+    if(time.time() - last_get_pulse > pulse_poll_s):
+        count = pulse.get_pulse_count(pulse_url)
         if(last_pulse_value == -1):
             last_pulse_value = count
             return
@@ -217,6 +222,8 @@ def flush_mqtt(mqtt: "Mqtt", cfg: dict, st: "State"):
     """
 
     global last_published
+    g = cfg["global"]
+    publish_interval = g.get("publish_interval")
 
     for s in cfg["sensors"]:
         sid   = s["id"]
@@ -263,7 +270,7 @@ def flush_mqtt(mqtt: "Mqtt", cfg: dict, st: "State"):
             st[f"{sid}.total_pub"] = total_cur
             last_published = time.time()
         else:
-            if time.time() - last_published > 5:
+            if time.time() - last_published > publish_interval:
                 total_cur = t1_cur + t2_cur
                 mqtt.pub(base, "t1", str(t1_cur), retain=True)
                 mqtt.pub(base, "t2", str(t2_cur), retain=True)

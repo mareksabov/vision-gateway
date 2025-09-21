@@ -2,14 +2,12 @@
 
 import requests
 
-url = "http://192.168.30.150:8080/pulse"
-
 class Pulse:
     def __init__(self):
         pass
 
-    def get_pulse_count(selft) -> int:
-        response = requests.get(url)
+    def get_pulse_count(self, pulseUrl) -> int:
+        response = requests.get(pulseUrl)
 
         # Check status code
         if response.status_code == 200:

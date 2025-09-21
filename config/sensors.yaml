@@ -3,6 +3,11 @@ global:
   conf_threshold: 0.6
   roi_upscale: 2
   max_step_kwh: 2
+  imp_per_kwh: 1000           # impulzov na 1 kWh
+  pulse_poll_s: 5             # ako často čítať /pulse
+  round_kwh_decimals: 4       # zaokrúhlenie T1/T2 pred publikovaním
+  pulse_url: "http://192.168.30.150:8080/pulse"  
+  publish_interval: 10
 sensors:
 - id: electricity_main
   snapshot_url: http://192.168.30.150:8080/shot.jpg
