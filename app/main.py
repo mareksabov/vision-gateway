@@ -304,7 +304,7 @@ def main():
     tariff = Tariff()
 
     ema_setup = EmaSetup()
-    ema_setup.run()
+    # ema_setup.run()
 
     poll = poll_from(cfg)
     LOG.info("vision-reader started; poll=%.2fs", poll)
