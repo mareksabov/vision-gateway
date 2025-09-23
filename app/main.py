@@ -170,7 +170,7 @@ def process_pulse(mqtt: "Mqtt", cfg: dict, st: "State", pulse: Pulse, tariff: Ta
                 t1 += delta * weight_of_pulse
 
                 if int(t1) > int(t1_ocr):
-                    t1 = int(t1) + 0.99
+                    t1 = int(t1_ocr) + 0.99
 
                 st[f"{sid}.t1"] = t1
                 print(f"New t1: {t1}")
@@ -180,7 +180,7 @@ def process_pulse(mqtt: "Mqtt", cfg: dict, st: "State", pulse: Pulse, tariff: Ta
                 t2 += delta * weight_of_pulse
 
                 if int(t2) > int(t2_ocr):
-                    t2 = int(t2) + 0.99
+                    t2 = int(t2_ocr) + 0.99
 
                 st[f"{sid}.t2"] = t2
                 print(f"New t2: {t2}")
