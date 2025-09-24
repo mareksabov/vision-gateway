@@ -11,12 +11,12 @@ class EmaSetup:
     SAMPLE_TIMEOUT = 0.3
 
     # okno na výpočet prahov
-    WINDOW_SECONDS = 60
+    WINDOW_SECONDS = 30
     MIN_SAMPLES = 10
     MIN_CLUSTER_GAP = 1.0
 
     # riadenie prepočtu/postovania
-    RECOMPUTE_INTERVAL = 180      # min. odstup medzi prepočtami (s)
+    RECOMPUTE_INTERVAL = 120      # min. odstup medzi prepočtami (s)
     POST_MIN_INTERVAL = 15        # min. odstup medzi POST (s)
 
     # detekcia skoku
