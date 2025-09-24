@@ -11,7 +11,7 @@ class EmaSetup:
     SAMPLE_TIMEOUT = 0.3
 
     # okno na výpočet prahov
-    WINDOW_SECONDS = 300
+    WINDOW_SECONDS = 60
     MIN_SAMPLES = 10
     MIN_CLUSTER_GAP = 1.0
 
