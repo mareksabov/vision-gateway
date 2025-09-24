@@ -114,6 +114,10 @@ def process_ocr(mqtt: "Mqtt", cfg: dict, st: "State"):
                     updated = True
                     LOG.info("[%s] -> t1_ocr := %s", sid, v)
                     last_ocr_value = -1 # reset pulses
+
+                    if (v > float(st.get(f"{sid}.t1", float(s.get("initial_t1", 0))))):
+                        st[f"{sid}.t1"] = v
+                        LOG.info("[%s] -> t1 := %s", sid, v)
             else:
                 if accept_update(last_t2, v):
                     st[f"{sid}.t2_ocr"] = v
@@ -121,6 +125,10 @@ def process_ocr(mqtt: "Mqtt", cfg: dict, st: "State"):
                     updated = True
                     LOG.info("[%s] -> t2_ocr := %s", sid, v)
                     last_ocr_value = -1 # reset pulses
+
+                    if (v > float(st.get(f"{sid}.t2", float(s.get("initial_t2", 0))))):
+                        st[f"{sid}.t2"] = v
+                        LOG.info("[%s] -> t2 := %s", sid, v)
 
             # # prepočítaj total vždy z internej pravdy (publish sa rieši vo flush-i)
             # total = last_t1 + last_t2
