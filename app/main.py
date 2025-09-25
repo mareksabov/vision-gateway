@@ -163,7 +163,7 @@ def process_pulse(mqtt: "Mqtt", cfg: dict, st: "State", pulse: Pulse, tariff: Ta
 
     if(time.time() - last_get_pulse > pulse_poll_s):
         count = pulse.get_pulse_count(pulse_url)
-        if(last_pulse_value == -1):
+        if(last_pulse_value == -1 or last_pulse_value > count):
             last_pulse_value = count
             return
         
