@@ -175,23 +175,31 @@ def process_pulse(mqtt: "Mqtt", cfg: dict, st: "State", pulse: Pulse, tariff: Ta
             if(is_t1):
                 t1 = float(_st_get(st, f"{sid}.t1", 0))
                 t1_ocr = float(_st_get(st, f"{sid}.t1_ocr", 0))
-                t1 += delta * weight_of_pulse
 
-                if int(t1) > int(t1_ocr):
-                    t1 = int(t1_ocr) + 0.99
+                if t1 - int(t1) >= 0.999:
+                    print(f"T1 freeze for ocr: {t1}")
+                else:
+                    t1 += delta * weight_of_pulse
 
-                st[f"{sid}.t1"] = t1
-                print(f"New t1: {t1}")
+                    if int(t1) > int(t1_ocr):
+                        t1 = int(t1_ocr) + 0.999
+
+                    st[f"{sid}.t1"] = t1
+                    print(f"New t1: {t1}")
             else:
                 t2 = float(_st_get(st, f"{sid}.t2", 0))
                 t2_ocr = float(_st_get(st, f"{sid}.t2_ocr", 0))
-                t2 += delta * weight_of_pulse
 
-                if int(t2) > int(t2_ocr):
-                    t2 = int(t2_ocr) + 0.99
+                if t2 - int(t2) >= 0.999:
+                    print(f"T2 freeze for ocr: {t2}")
+                else:
+                    t2 += delta * weight_of_pulse
 
-                st[f"{sid}.t2"] = t2
-                print(f"New t2: {t2}")
+                    if int(t2) > int(t2_ocr):
+                        t2 = int(t2_ocr) + 0.999
+
+                    st[f"{sid}.t2"] = t2
+                    print(f"New t2: {t2}")
 
 
         last_pulse_value = count
