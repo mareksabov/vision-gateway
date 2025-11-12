@@ -2,15 +2,20 @@ global:
   poll_interval_s: 4
   conf_threshold: 0.6
   roi_upscale: 2
-  max_step_kwh: 2
+  max_step_kwh: 3
+  imp_per_kwh: 1000
+  pulse_poll_s: 5
+  round_kwh_decimals: 4
+  pulse_url: http://192.168.30.150:8080/pulse
+  publish_interval: 10
 sensors:
 - id: electricity_main
   snapshot_url: http://192.168.30.150:8080/shot.jpg
   mqtt_topic_base: ha/electricity
   roi_display:
-  - 292
-  - 626
-  - 426
-  - 146
+  - 398
+  - 254
+  - 371
+  - 133
   initial_t1: 13485
   initial_t2: 17644

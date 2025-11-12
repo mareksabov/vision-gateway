@@ -120,6 +120,8 @@ def api_state_set_tariffs():
     # write back (flat schema only)
     st[f"{sid}.t1"] = float(t1)
     st[f"{sid}.t2"] = float(t2)
+    st[f"{sid}.t1_ocr"] = float(t1)
+    st[f"{sid}.t2_ocr"] = float(t2)
     st[f"{sid}.total"] = float(total)
 
     _save_state_atomic(st)
